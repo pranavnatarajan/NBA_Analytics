@@ -1,0 +1,289 @@
+---
+title: "Main Code Notebook"
+author: "Pranav Natarajan"
+date: "15/04/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# loading required packages onto workbook instance
+require(nbastatR)
+```
+
+## Getting the dictionary of the players in BREF
+```{r}
+dictionary_bref_players<- dictionary_bref_players()
+```
+
+## Creating the column of first season
+```{r}
+dictionary_bref_players<- dictionary_bref_players %>% tidyr::separate(col=slugSeasonRookie, into = c('yearDraft', NA), remove=F)
+```
+
+
+## Getting draft data from 1985-2020, since 1985 is the year when the 3 pt. line and modern basketball came into being.
+```{r}
+draft_data<- drafts(draft_years = 1985:2020, nest_data = F)
+```
+
+## getting teams dictionary from BREF
+```{r}
+dictionary_bref_teams<- dictionary_bref_teams()
+```
+
+## Renaming namePlayer to namePLayerBREF in draft_data for ease in merging
+```{r}
+draft_data<- draft_data %>% dplyr::rename(namePlayerBREF = namePlayer)
+```
+
+## performing the join of draft_data and dictionary_bref_players['namePlayerBREF', 'yearDraft'] into the initial feature matrix X
+```{r}
+X<- merge.data.frame(x = draft_data, 
+                     y= dictionary_bref_players[, c("namePlayerBREF", "yearDraft", "slugPlayerBREF")],
+                     by=c("namePlayerBREF", "yearDraft"), all=F)
+```
+
+
+## relocating the slugPlayerBREF column to be the first from the left for easier readability, and dropping Player_Profile_Flag
+```{r}
+X<- X %>% relocate(slugPlayerBREF, .before = namePlayerBREF) %>% select(!(PLAYER_PROFILE_FLAG))
+```
+
+
+## Getting the player bios (salaries by szn)
+```{r}
+bref_bios(player_ids = X$slugPlayerBREF)
+```
+
+
+## Getting player stats of the players in X
+```{r}
+player_stats<- bref_players_stats(seasons = 1985:2020, 
+                                  tables = c("totals", "advanced", "per_minute"),
+                                  return_message = T)
+```
+
+## Removing the columns which begin with `url`
+```{r}
+dataBREFPlayerPerMinute<- dataBREFPlayerPerMinute %>% select(!starts_with("url"))
+```
+
+## Joining the PerMinute, Advanced, and Total Data by slugPlayerSeason. Also creating new column anagulous to in Salaries table and merging Salary data by season.
+```{r}
+comprehensive_stats<- merge(x=dataBREFPlayerPerMinute, y=dataBREFPlayerAdvanced, by="slugPlayerSeason", all=F)
+comprehensive_stats<- merge(x=comprehensive_stats, y=dataBREFPlayerTotals, by="slugPlayerSeason", all=F)
+```
+
+## Sanity Check:- checking number of distinct values in the slugplayerseason column, as that is our primary key
+```{r}
+nums_pl<- comprehensive_stats %>% count(slugPlayerSeason) %>% arrange(desc(n)) %>% head()
+nums_pl # these players have faulty NBA ID's and are therefore fail integrity check
+```
+
+## Noting that there are cases where there are more rows than needed, we remove those duplicate rows from the dataset.
+```{r}
+# code to remove duplicates from the comprehensive_stats dataframe
+comprehensive_stats<- comprehensive_stats %>% distinct(slugPlayerSeason, .keep_all = T)# nrow = 15610
+```
+
+## Creating a slugPlayerSeason column for the Salaries data
+```{r}
+# first, creating a separate column for the yearSeason
+# then, using that and the slugPlayerBREF Column to create slugPlayerSeason
+#dataBREFPlayersSalaries<- dataBREFPlayersSalaries %>% separate(col=slugSeason, into=c("yearSeason", NA), sep='-')
+
+#dataBREFPlayersSalaries<- dataBREFPlayersSalaries %>% unite(slugPlayerSeason, c("slugPlayerBREF", "yearSeason"))
+
+# grouping salary data by slugPlayerSeason
+dataBREFPlayersSalaries_grp<- dataBREFPlayersSalaries %>% select(c("slugPlayerSeason", "amountSalary")) %>% group_by(slugPlayerSeason) %>% summarise(totSalary = sum(amountSalary)) # this works! automatic summation of 
+```
+
+## Joining Salary data vector to comprehensive_stats
+```{r}
+comprehensive_stats<- merge(x=comprehensive_stats, y=dataBREFPlayersSalaries_grp, by="slugPlayerSeason", all=F) # Success! 8489
+```
+
+
+## Dropping url columns
+```{r}
+comprehensive_stats<- comprehensive_stats %>% select(!starts_with("url"))# 10 columns dropped. 109 variables currently
+```
+
+## Dropping all instances of countTeamsPlayerSeasonTotals
+```{r}
+comprehensive_stats<- comprehensive_stats %>% select(!tidyselect::contains("countTeamsPlayerSeasonTotals"))# 10 columns dropped
+```
+
+## Counting the number of duplicate primary keys (if any) in comprehensive_stats after merging with salary data
+```{r}
+nums_pl<- comprehensive_stats %>% count(slugPlayerSeason) %>% arrange(desc(n)) #%>% head()
+View(nums_pl) # these players have faulty NBA ID's and are therefore fail integrity check
+```
+
+<!-- We see that there are duplicate salary values, causing these 300+ duplicate instances! -->
+
+<!-- > length(nums_pl$n[which(nums_pl$n > 1)]) # cases where duplications exist -->
+<!-- [1] 300 -->
+<!-- > length(nums_pl$n[which(nums_pl$n == 2)]) -->
+<!-- [1] 281 -->
+<!-- > length(nums_pl$n[which(nums_pl$n == 3)]) -->
+<!-- [1] 19 -->
+
+## Dropping tuples which do not have salary in them
+```{r}
+comprehensive_stats<- comprehensive_stats %>%  drop_na(totSalary)# 8460 observations
+```
+
+## getting description of variables in dataset (Do not run rn)
+```{r}
+summary(comprehensive_stats)
+```
+
+TODO:- REMOVE IRRELEVANT COLUMNS FROM comprehensive_stats, create the feature matrix X, and label set y
+
+
+
+
+
+<!-- ## BREF Awards -->
+<!-- ```{r} -->
+<!-- rookie_of_the_Year<- bref_awards(awards = "Rookie of the Year") -->
+<!-- ``` -->
+
+<!-- ## Subsetting BREF Award data from 1985 szn onwards -->
+<!-- ```{r} -->
+<!-- rookie_of_the_Year<- rookie_of_the_Year %>% dplyr::filter(slugSeason >= '1984-85') -->
+<!-- ``` -->
+
+<!-- ## adding yearDraft column for first  -->
+
+
+<!-- ``` -->
+
+<!-- ## nba stat draft data -->
+
+<!-- ```{r} -->
+<!-- draft_data<- drafts(draft_years = 2000:2017, nest_data = F, return_message = T) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- draft_data<- draft_data %>% dplyr::filter(numberRound == 1) -->
+<!-- ``` -->
+
+<!-- ## nba salary, transaction, contract data -->
+
+<!-- ```{r} -->
+<!-- salary_data<- bref_bios(players = draft_data$namePlayer, assign_to_environment = T) -->
+<!-- ``` -->
+
+<!-- <!-- ## Filtering salary_data to only have salary information --> -->
+
+<!-- <!-- ```{r} --> -->
+<!-- <!-- salary_data<- salary_data %>% dplyr::filter(nameTable == 'Salaries') --> -->
+<!-- <!-- ``` --> -->
+
+<!-- UPDATE:- DO not need this salary information! look at dataBREFPlayersSalaries and dataBREFPlayersTransactions -->
+
+<!-- # Subsetting Transactions table by only using player ids starting from 2000-01 -->
+
+<!-- ## Clarifications of contract data:- -->
+
+<!-- 1. NBA rookie contract is a four-year deal for first-round picks with the team having an option to keep the player for years three and four. -->
+
+<!-- 2. A regular extension adds four new years to the original rookie contract. This deal can only be done before the fourth year of the rookie deal, so in signing a player will (barring trade) be tied to the team for another five years at that point. -->
+
+<!-- 3. IF a player's rookie contract is not exercised for any of the option years, the player becomes an unrestricted free agent, and is free to negotiate and sign with another team. That then becomes their second contract -->
+
+
+<!-- ## getting bref players data -->
+
+<!-- ```{r} -->
+<!-- players_data<- bref_players_stats(seasons = 2009:2018,  -->
+<!--                                   tables = c("totals", "advanced", "per_game"),  -->
+<!--                                   nest_data = F) -->
+<!-- ``` -->
+
+
+
+<!-- ## Subsetting the transaction data with data only from 2000-01 season (i.e, from 2000-06-28 until end of 2017 szn) -->
+
+<!-- ```{r} -->
+<!-- dataBREFPlayersTransactions<- dataBREFPlayersTransactions %>% dplyr::filter(dateTransaction >= '2000-06-28') -->
+<!-- ``` -->
+
+<!-- ## Subsetting the transaction data without G-league info -->
+
+<!-- ```{r} -->
+<!-- dataBREFPlayersTransactions<- dataBREFPlayersTransactions %>% dplyr::filter(isGLeagueMovement == FALSE) -->
+<!-- ``` -->
+
+<!-- ## Subsetting the salary table to only have data of players drafted from 2000-01 szn onwards -->
+<!-- ```{r} -->
+<!-- all_player_ids_2000_onwards<- unique(dataBREFPlayersTransactions$slugPlayerBREF) -->
+<!-- dataBREFPlayersSalaries1<- dataBREFPlayersSalaries %>% dplyr::filter(slugPlayerBREF %in% all_player_ids_2000_onwards) -->
+<!-- ``` -->
+
+<!-- ## Getting data on every single NBA player -->
+
+<!-- ```{r} -->
+<!-- #assign_bref_data() -->
+<!-- assign_nba_players() -->
+<!-- assign_nba_teams() -->
+<!-- ``` -->
+
+<!-- ## getting dictionary of bref player database -->
+
+<!-- ```{r} -->
+<!-- dictionary_bref_players<- dictionary_bref_players() -->
+<!-- ``` -->
+
+<!-- Realising that there exists a `slugSeasonRookie` column, allowing for easier subsetting of BREF reference data, we can then use the respective player IDs whose rookie seasons started from 2000-01 up until 2017-18. -->
+
+<!-- ## getting new subset of bref bio data, and getting bref player data tables based on slugplayer ids. -->
+
+<!-- ```{r} -->
+<!-- slugPlayerBREF_rookie<- dictionary_bref_players$slugPlayerBREF[which(dictionary_bref_players$slugSeasonRookie >= '2000-01' & dictionary_bref_players$slugSeasonRookie <= '2017-18')] -->
+<!-- ``` -->
+
+<!-- ## getting bref bios for the rookies -->
+<!-- ```{r} -->
+<!-- bref_bios(player_ids = slugPlayerBREF_rookie, assign_to_environment = T) -->
+<!-- ``` -->
+
+
+<!-- TODO:- Split year columns in BREF data tables by delimiter '-', and look to subset tables of data salaries to given player names in draft dataset. You can do that by inner joining the dataframes together. -->
+
+<!-- ```{r} -->
+<!-- # first, splitting the slugSeasonRookie column by delimiter '-' -->
+<!-- dictionary_bref_players<- dictionary_bref_players %>% tidyr::separate(col=slugSeasonRookie, into=c("RookieSzn", NA), sep='-') -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # Now, left joining the bref dictionary based on player name and year -->
+<!-- # left joining, because we want all players in draft data if they do not have rookie-szn data -->
+
+<!-- draft_data1<- merge(x=draft_data, y=dictionary_bref_players, by.x = c('namePlayer', 'yearDraft'), by.y=c('namePlayerBREF', 'RookieSzn')) -->
+<!-- ``` -->
+
+<!-- NOTE:- 3 point line and rules started 1980 onwards. Get data from 1980 to 2020- 40 years of rookie data and contract info to deal with. -->
+
+<!-- ```{r} -->
+<!-- # now, using the bref player ids to get the data of each player -->
+<!-- draft_data1<- merge(x=draft_data1, y=dataBREFPlayerAdvanced, by=c('slugPlayerBREF')) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # merging salary data to draft_data1 -->
+<!-- draft_data1<- merge(x=draft_data1, y=dataBREFPlayersSalaries, by=c('slugPlayerBREF')) -->
+<!-- ``` -->
+
+<!-- # Note:- look at draft_data1 and see what can be done. -->
+<!-- # Possible grouping by id and yearSeason? -->
+
+<!-- ```{r} -->
+<!-- draft_data2<- draft_data1 %>% dplyr::group_by(slugPlayerBREF) -->
+<!-- ``` -->
