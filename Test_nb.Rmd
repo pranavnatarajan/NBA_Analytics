@@ -12,6 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 # loading required packages onto workbook instance
 require(nbastatR)
+require(tidyr)
+require(dplyr)
+# require(xlsx)
 ```
 
 ## Getting the dictionary of the players in BREF
@@ -179,3 +182,30 @@ summary(comprehensive_stats)
 
 TODO:- REMOVE IRRELEVANT COLUMNS FROM comprehensive_stats, Normalise Salary data by salary cap by year, create the feature matrix X, and label set y by separating totSalary from comprehensive_stats into separate vector.
 
+## importing the csv of salary cap data
+```{r}
+salary_cap_data<- read.csv(file="sportsref_download.csv", header = T)
+salary_cap_data<- salary_cap_data %>% dplyr::select(-salary_cap_in2021valuation)
+```
+
+## formatting the dataframe to remove the `$` sign and commas from columns and change datatype to numeric
+```{r}
+salary_cap_data$salary_cap<- stringr::str_replace_all(pattern="[$,]", replacement="", string =salary_cap_data$salary_cap)#%>% dplyr::mutate(salary_cap = as.numeric(salary_cap))
+```
+
+## creating the yearSeason column to ensure easy merging
+```{r}
+salary_cap_data<- salary_cap_data %>% tidyr::separate(col=yearSeason, into=c("yearSeason", NA), sep='-')
+```
+
+## merging salary_cap_data to comprehensive_stats
+```{r}
+comprehensive_stats<- merge(x=comprehensive_stats, y=salary_cap_data, by.x= c("yearSeason.x"), by.y=c("yearSeason"))
+```
+
+## mutating a new column as the ratio between salary and salary_cap, called normalised_salary
+```{r}
+comprehensive_stats<- comprehensive_stats %>% dplyr::mutate(normalised_salary = totSalary / as.numeric(salary_cap))
+```
+
+## TODO:- fix the year season splitting, and the then look at methods to perform ensemble methods/blending in R
