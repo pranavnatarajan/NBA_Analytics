@@ -30,13 +30,10 @@ dictionary_bref_players<- dictionary_bref_players %>% tidyr::separate(col=slugSe
 
 ## Getting draft data from 1985-2020, since 1985 is the year when the 3 pt. line and modern basketball came into being.
 ```{r}
-draft_data<- drafts(draft_years = 1985:2021, nest_data = F)
+draft_data<- drafts(draft_years = 1985:2021, nest_data = F) #draft from 1985-85 to 2021-22 szns
 ```
 
-## getting teams dictionary from BREF (Not needed)
-```{r}
-dictionary_bref_teams<- dictionary_bref_teams()
-```
+
 
 ## Renaming namePlayer to namePlayerBREF in draft_data for ease in merging
 ```{r}
@@ -98,17 +95,30 @@ comprehensive_stats<- comprehensive_stats %>% distinct(slugPlayerSeason, .keep_a
 ```{r}
 # first, creating a separate column for the yearSeason
 # then, using that and the slugPlayerBREF Column to create slugPlayerSeason
-dataBREFPlayersSalaries<- dataBREFPlayersSalaries %>% separate(col=slugSeason, into=c("yearSeason", NA), sep='-')
 
-dataBREFPlayersSalaries<- dataBREFPlayersSalaries %>% unite(slugPlayerSeason, c("slugPlayerBREF", "yearSeason"))
+dataBREFPlayersSalaries<- dataBREFPlayersSalaries %>% separate(col=slugSeason, into=c("yearSeason", NA), sep='-', remove = F)
 
+# add a 1 to yearseason column for uniformity and help in merging
+dataBREFPlayersSalaries$yearSeason<- as.numeric(dataBREFPlayersSalaries$yearSeason) + 1
+
+
+dataBREFPlayersSalaries<- dataBREFPlayersSalaries %>% unite(slugPlayerSeason, c("slugPlayerBREF", "yearSeason"), remove = F)
+```
+
+
+## Dropping the yearSeason column
+```{r}
+dataBREFPlayersSalaries<- dataBREFPlayersSalaries %>% select(!c("yearSeason"))
+```
+
+```{r}
 # grouping salary data by slugPlayerSeason
 dataBREFPlayersSalaries_grp<- dataBREFPlayersSalaries %>% select(c("slugPlayerSeason", "amountSalary")) %>% group_by(slugPlayerSeason) %>% summarise(totSalary = sum(amountSalary)) # this works!
 ```
 
 ## Joining Salary data vector to comprehensive_stats
 ```{r}
-comprehensive_stats<- merge(x=comprehensive_stats, y=dataBREFPlayersSalaries_grp, by="slugPlayerSeason", all=F) # Success! 8490
+comprehensive_stats<- merge(x=comprehensive_stats, y=dataBREFPlayersSalaries_grp, by="slugPlayerSeason", all=F) # Success! 9684
 ```
 
 
@@ -124,27 +134,27 @@ comprehensive_stats<- comprehensive_stats %>% select(!tidyselect::contains("coun
 
 ## Dropping extra info columns- Pt1
 ```{r}
-comprehensive_stats<- comprehensive_stats %>% select(!(countTeamsPlayerSeasonPerMinute:`idPlayerNBA.y`))
+comprehensive_stats<- comprehensive_stats %>% select(!(countTeamsPlayerSeasonPerMinute:`idPlayerNBA.y`)) # 95 variables currently
 ```
 
 ## Dropping extra info columns-Pt2
 ```{r}
-comprehensive_stats<- comprehensive_stats %>% select(!(countTeamsPlayerSeason:idPlayerNBA))
+comprehensive_stats<- comprehensive_stats %>% select(!(countTeamsPlayerSeason:idPlayerNBA))# 76 variables currently
 ```
 
 ## Dropping the columns of minutesPerMinute and minutesTotals
 ```{r}
-comprehensive_stats<- comprehensive_stats %>% select(!c(minutesPerMinute, minutesTotals))# 1 column dropped
+comprehensive_stats<- comprehensive_stats %>% select(!c(minutesPerMinute, minutesTotals))# 2 columns dropped. 74 variables
 ```
 
 ## getting the counts of NAs in each column
 ```{r}
 count_NAs<- apply(X=comprehensive_stats, MARGIN=2,
                   FUN= function(x) {return(sum(is.na(x)))})
-count_NAs # 29 NAs in salary column, remove those rows
+count_NAs # 56 NAs in salary column, remove those rows
 ```
 
-## drop 29 columns with NA salary values in them
+## drop 56 columns with NA salary values in them
 ```{r}
 comprehensive_stats<- comprehensive_stats %>% drop_na(totSalary)
 ```
@@ -170,17 +180,6 @@ View(nums_pl) # no duplicates!
 <!-- > length(nums_pl$n[which(nums_pl$n == 3)]) -->
 <!-- [1] 19 -->
 
-## Dropping tuples which do not have salary in them
-```{r}
-comprehensive_stats<- comprehensive_stats %>%  drop_na(totSalary)# 8460 observations
-```
-
-## getting description of variables in dataset (Do not run rn)
-```{r}
-summary(comprehensive_stats)
-```
-
-TODO:- REMOVE IRRELEVANT COLUMNS FROM comprehensive_stats, Normalise Salary data by salary cap by year, create the feature matrix X, and label set y by separating totSalary from comprehensive_stats into separate vector.
 
 ## importing the csv of salary cap data
 ```{r}
@@ -195,7 +194,7 @@ salary_cap_data$salary_cap<- stringr::str_replace_all(pattern="[$,]", replacemen
 
 ## creating the yearSeason column to ensure easy merging
 ```{r}
-salary_cap_data<- salary_cap_data %>% tidyr::separate(col=yearSeason, into=c("yearSeason", NA), sep='-')
+salary_cap_data<- salary_cap_data %>% tidyr::separate(col=yearSeason, into=c("yearSeason", NA), sep='-', remove=F)
 ```
 
 ## merging salary_cap_data to comprehensive_stats
@@ -205,7 +204,5 @@ comprehensive_stats<- merge(x=comprehensive_stats, y=salary_cap_data, by.x= c("y
 
 ## mutating a new column as the ratio between salary and salary_cap, called normalised_salary
 ```{r}
-comprehensive_stats<- comprehensive_stats %>% dplyr::mutate(normalised_salary = totSalary / as.numeric(salary_cap))
+comprehensive_stats<- comprehensive_stats %>% dplyr::mutate(normalised_salary = totSalary / as.numeric(salary_cap)) # WORKS. do not change anything else.
 ```
-
-## TODO:- fix the year season splitting, and the then look at methods to perform ensemble methods/blending in R
