@@ -160,25 +160,11 @@ comprehensive_stats<- comprehensive_stats %>% drop_na(totSalary)
 ```
 
 
-
-
 ## Counting the number of duplicate primary keys (if any) in comprehensive_stats
 ```{r}
 nums_pl<- comprehensive_stats %>% count(slugPlayerSeason) %>% arrange(desc(n))
 View(nums_pl) # no duplicates!
 ```
-
-
-
-
-<!-- We see that there are duplicate salary values, causing these 300+ duplicate instances! -->
-
-<!-- > length(nums_pl$n[which(nums_pl$n > 1)]) # cases where duplications exist -->
-<!-- [1] 300 -->
-<!-- > length(nums_pl$n[which(nums_pl$n == 2)]) -->
-<!-- [1] 281 -->
-<!-- > length(nums_pl$n[which(nums_pl$n == 3)]) -->
-<!-- [1] 19 -->
 
 
 ## importing the csv of salary cap data
