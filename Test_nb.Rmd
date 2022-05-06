@@ -192,3 +192,10 @@ comprehensive_stats<- merge(x=comprehensive_stats, y=salary_cap_data, by.x= c("y
 ```{r}
 comprehensive_stats<- comprehensive_stats %>% dplyr::mutate(normalised_salary = totSalary / as.numeric(salary_cap)) # WORKS. do not change anything else.
 ```
+
+
+## saving comprehensive stats in an RData file
+```{r}
+# saving as RDS
+saveRDS(object=comprehensive_stats, file="comprehensive_stats.rds")
+```
