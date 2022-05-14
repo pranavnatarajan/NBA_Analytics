@@ -1,0 +1,183 @@
+---
+title: "PCA_calculations"
+author: "Pranav Natarajan"
+date: "06/05/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading Required Packages into workbook instance
+```{r}
+require(tidyr)# for easy data handling and pipeline creation
+require(dplyr)# for easy data handling and pipeline creation
+require(caret)# for machine learning models
+require(FactoMineR)# for FAMD
+require(factoextra)# for FAMD
+require(standardize)# for standardisation of continuous variables
+```
+
+## Loading comprehensive_stats from the rds file
+```{r}
+player_stats<- readRDS(file="player_stats.rds") # 9628 rows of 76 variables! OK
+```
+
+## getting summary of comprehensive stats
+```{r}
+summary(player_stats)
+```
+
+## Removing `SlugTeamsBREF` since `slugTeamBREF` already present.
+```{r}
+player_stats<- player_stats %>% select(!c(slugTeamsBREF)) #76 variables
+```
+
+## Removing further irrelevant columns before PCA computations
+```{r}
+player_stats<- player_stats %>% select(!c(yearSeason:groupPosition, # do not need personal identifiers
+                                                        isHOFPlayer, # not required-- HOF attained only after retirement
+                                                        idPlayerNBA, # not required
+                                                        totSalary, salary_cap, # normalised salary already contains both their information
+                                                        )) # 67 columns left
+```
+
+
+## getting revised summary of `player_stats`
+```{r}
+summary(player_stats)
+```
+
+## Removing `slugPlayerBREF` from feature set
+```{r}
+player_stats<- player_stats %>% select(!c(slugPlayerBREF))
+```
+
+## Creating the label set y = normalised_salary
+```{r}
+y = player_stats$normalised_salary
+```
+
+## Creating feature:- games not started as the difference between games and games started:- thereby reducing dependency on two columns in place of 1
+```{r}
+player_stats<- player_stats %>% mutate(countGamesNotStarted = countGames - countGamesStarted, .before="pctFG")
+```
+
+## Creating the dataframe of features
+```{r}
+X = player_stats %>% select(!c(normalised_salary))
+```
+
+## getting summary of X
+```{r}
+summary(X)
+```
+
+## Relocating the `slugTeamBREF` column to be after `slugPosition`
+```{r}
+X<- X %>% relocate(slugTeamBREF, .after = slugPosition)
+```
+
+## standardising the numeric columns
+```{r}
+# standard scaling the numeric columns
+X[, -(1:2)]<- scale(x= X[, -(1:2)], center = T, scale=T)
+```
+
+## Variable Selection
+
+### Step 1:- removing redundancies
+
+We will remove the per minute stats as advanced stats already has on floor percentages or specialised transformations of the same.
+
+From the above and reading the spec text files, we note that we already have 
+
+1. eFG% <`pctEFG`> -- Effective Field Goal Percentage, a percentage statistic that adjusts for the fact that a 3-point field goal is worth one more point than a 2-point field goal. This is, in essence, a transformation of the per game percentages of field goals, 2 pt field goals, 3 pt field goals present in the dataset. So, we will delete `pctFG:pctFG2`, (and `fgmPerGame:ftaPerGame`, on which the percentages depend upon).
+
+2. Free throw percentage need not be computed since Free throw percentage throughout season is given by Advanced stat `pctFTRate`. So, we will delete `pctFT`
+
+3. Note that the Advanced stats has percentages for steals, blocks, turnovers, assists, rebounds (including Offensive Rebounds and Defensive Rebounds encompassed by Total Rebounds). So, we can delete `orbPerGame:tovPerGame`. We will retain Personal Fouls and Points as per game stats
+
+4. We will focus on Total rebounds, which factor in offensive and defensive rebounds, so we can delete `pctORB:pctDRB`
+
+5. Similar logic as in 4. for Box Plus Minus, and Win shares. So, we will delete `ratioOWS:ratioDWS` and `ratioWSPer48:ratioDBPM`
+
+6. Remove all per minute stats as mentioned above. So, delete `fgmPerMinute:ptsPerMinute`.
+
+Doing so,
+```{r}
+X<- X %>% select(!c(pctFG:pctFG2, fgmPerGame:ftaPerGame, 
+                    pctFT, orbPerGame:tovPerGame, 
+                    pctORB:pctDRB, ratioOWS:ratioDWS, ratioWSPer48:ratioDBPM,
+                    fgmPerMinute:ptsPerMinute))
+```
+
+Revisiting the summary
+```{r}
+summary(X)
+```
+
+## Saving X and y for future use
+```{r}
+# saving X
+saveRDS(object = X, file = "X.rds")
+# saving y
+saveRDS(object = y, file = "y.rds")
+```
+
+<!-- ## Stepwise AIC selection, forward and backward selection. Focus on per game stats. glance @ formulae for advanced stats and check for redundancies. check the MASS library. Variable importance function. Standardise the numeric functions before you do FAMD and see whether that makes a difference. -->
+
+## The Boruta Algorithm for Variable Selection
+
+Noting that we are not necessarily due to perform Linear lEast Squares regression, or any from a suite of usual glm/lm model objects, we will focus on the Boruta Algorithm, which uses a random forest regressor and the principle of shadow features
+
+```{r}
+Boruta_feat_selection<- Boruta(x = X, y = y, doTrace = 2, maxRuns = 250)
+```
+
+Getting the feature importance plots
+```{r}
+plot(Boruta_feat_selection, las=2, cex.axis=0.5)
+```
+
+
+```{r}
+plotImpHistory(Boruta_feat_selection)
+```
+
+we see that these plots both do not have any of our 23 variables as tentative or rejected, as shown by random forest feature importance.
+
+## Creating 80-20 training and testing set from X
+```{r}
+set.seed(42) # for reproducability
+
+# getting training tuple indices
+train_indices<- createDataPartition(y = y, p = 0.8, list = F)
+
+# creating training and testing sets
+X_train<- X[train_indices,]
+y_train<- y[train_indices]
+X_test<- X[-(train_indices),]
+y_test<- y[-(train_indices)]
+```
+
+## fitting a Random forest model onto best training subset using 10 fold CV
+```{r}
+# using randomForest model from randomForest package (note that the ranger implementation in Boruta also uses the same model implementation (by breiman and cutler))
+
+# creating the model and fitting on the training data
+nba_rfr<- randomForest::randomForest(x=X_train, y=y_train, importance=T)
+```
+
+```{r}
+# getting predictions on the test set
+nba_rfr_preds<- predict(object = nba_rfr, newdata = X_test)
+```
+
+
+```{r}
+# getting MSE of preds
+RMSE(pred=nba_rfr_preds, obs = y_test)
+```
+

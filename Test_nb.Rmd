@@ -63,32 +63,32 @@ bref_bios(player_ids = X$slugPlayerBREF)
 ## Getting player stats of the players in X
 ```{r}
 player_stats<- bref_players_stats(seasons = 1985:2021, 
-                                  tables = c("totals", "advanced", "per_minute"),
-                                  return_message = T)
+                                  tables = c("per_game", "advanced", "per_minute"),
+                                  return_message = T, join_data = T, nest_data = F)
 ```
 
 
-## Joining the PerMinute, Advanced, and Total Data by slugPlayerSeason. Also creating new column anagulous to in Salaries table and merging Salary data by season.
-```{r}
-comprehensive_stats<- merge(x=dataBREFPlayerPerMinute, y=dataBREFPlayerAdvanced, by="slugPlayerSeason", all=F)
-comprehensive_stats<- merge(x=comprehensive_stats, y=dataBREFPlayerTotals, by="slugPlayerSeason", all=F)
-```
+<!-- ## Joining the PerMinute, Advanced, and Total Data by slugPlayerSeason. Also creating new column anagulous to in Salaries table and merging Salary data by season. -->
+<!-- ```{r} -->
+<!-- comprehensive_stats<- merge(x=dataBREFPlayerPerMinute, y=dataBREFPlayerAdvanced, by="slugPlayerSeason", all=F) -->
+<!-- comprehensive_stats<- merge(x=comprehensive_stats, y=dataBREFPlayerTotals, by="slugPlayerSeason", all=F) -->
+<!-- ``` -->
 
 ## Removing the columns which begin with `url` (not required at this point in the process)
 ```{r}
-dataBREFPlayerPerMinute<- dataBREFPlayerPerMinute %>% select(!starts_with("url"))
+player_stats<- player_stats %>% select(!starts_with("url"))# 80 variables currently
 ```
 
 ## Sanity Check:- checking number of distinct values in the slugplayerseason column, as that is our primary key
 ```{r}
-nums_pl<- comprehensive_stats %>% count(slugPlayerSeason) %>% arrange(desc(n)) %>% head()
+nums_pl<- player_stats %>% count(slugPlayerSeason) %>% arrange(desc(n)) %>% head()
 nums_pl # these players have faulty NBA ID's and are therefore fail integrity check
 ```
 
 ## Noting that there are cases where there are more rows than needed, we remove those duplicate rows from the dataset.
 ```{r}
 # code to remove duplicates from the comprehensive_stats dataframe
-comprehensive_stats<- comprehensive_stats %>% distinct(slugPlayerSeason, .keep_all = T)# nrow = 16150
+player_stats<- player_stats %>% distinct(slugPlayerSeason, .keep_all = T)# nrow = 16150
 ```
 
 ## Creating a slugPlayerSeason column for the Salaries data, and adding salary information for a player for a given season.
@@ -118,51 +118,51 @@ dataBREFPlayersSalaries_grp<- dataBREFPlayersSalaries %>% select(c("slugPlayerSe
 
 ## Joining Salary data vector to comprehensive_stats
 ```{r}
-comprehensive_stats<- merge(x=comprehensive_stats, y=dataBREFPlayersSalaries_grp, by="slugPlayerSeason", all=F) # Success! 9684
+player_stats<- merge(x=player_stats, y=dataBREFPlayersSalaries_grp, by="slugPlayerSeason", all=F) # Success! 9684
 ```
 
 
-## Dropping url columns
-```{r}
-comprehensive_stats<- comprehensive_stats %>% select(!starts_with("url"))# 10 columns dropped. 109 variables currently
-```
+<!-- ## Dropping url columns -->
+<!-- ```{r} -->
+<!-- comprehensive_stats<- comprehensive_stats %>% select(!starts_with("url"))# 10 columns dropped. 109 variables currently -->
+<!-- ``` -->
 
 ## Dropping all instances of countTeamsPlayerSeasonTotals
 ```{r}
-comprehensive_stats<- comprehensive_stats %>% select(!tidyselect::contains("countTeamsPlayerSeasonTotals"))# 1 column dropped
+player_stats<- player_stats %>% select(!tidyselect::starts_with("countTeamsPlayerSeason"))# 3 columns dropped
 ```
 
 ## Dropping extra info columns- Pt1
 ```{r}
-comprehensive_stats<- comprehensive_stats %>% select(!(countTeamsPlayerSeasonPerMinute:`idPlayerNBA.y`)) # 95 variables currently
+player_stats<- player_stats %>% select(!c("minutesPerGame", "minutesPerMinute","isSeasonCurrent")) # 75 variables currently
 ```
 
-## Dropping extra info columns-Pt2
-```{r}
-comprehensive_stats<- comprehensive_stats %>% select(!(countTeamsPlayerSeason:idPlayerNBA))# 76 variables currently
-```
+<!-- ## Dropping extra info columns-Pt2 -->
+<!-- ```{r} -->
+<!-- player_stats<- player_stats %>% select(!(countTeamsPlayerSeason:idPlayerNBA))# 76 variables currently -->
+<!-- ``` -->
 
-## Dropping the columns of minutesPerMinute and minutesTotals
-```{r}
-comprehensive_stats<- comprehensive_stats %>% select(!c(minutesPerMinute, minutesTotals))# 2 columns dropped. 74 variables
-```
+<!-- ## Dropping the columns of minutesPerMinute and minutesTotals -->
+<!-- ```{r} -->
+<!-- comprehensive_stats<- comprehensive_stats %>% select(!c(minutesPerMinute, minutesTotals))# 2 columns dropped. 74 variables -->
+<!-- ``` -->
 
 ## getting the counts of NAs in each column
 ```{r}
-count_NAs<- apply(X=comprehensive_stats, MARGIN=2,
+count_NAs<- apply(X=player_stats, MARGIN=2,
                   FUN= function(x) {return(sum(is.na(x)))})
 count_NAs # 56 NAs in salary column, remove those rows
 ```
 
 ## drop 56 columns with NA salary values in them
 ```{r}
-comprehensive_stats<- comprehensive_stats %>% drop_na(totSalary)
+player_stats<- player_stats %>% drop_na(totSalary) # 9628 tuples left
 ```
 
 
 ## Counting the number of duplicate primary keys (if any) in comprehensive_stats
 ```{r}
-nums_pl<- comprehensive_stats %>% count(slugPlayerSeason) %>% arrange(desc(n))
+nums_pl<- player_stats %>% count(slugPlayerSeason) %>% arrange(desc(n))
 View(nums_pl) # no duplicates!
 ```
 
@@ -178,6 +178,10 @@ salary_cap_data<- salary_cap_data %>% dplyr::select(-salary_cap_in2021valuation)
 salary_cap_data$salary_cap<- stringr::str_replace_all(pattern="[$,]", replacement="", string =salary_cap_data$salary_cap)#%>% dplyr::mutate(salary_cap = as.numeric(salary_cap))
 ```
 
+## adding 1 to salary cap yearSeason for easy merging
+```{r}
+salary_cap_data$yearSeason<- as.numeric(salary_cap_data$yearSeason) + 1
+```
 ## creating the yearSeason column to ensure easy merging
 ```{r}
 salary_cap_data<- salary_cap_data %>% tidyr::separate(col=yearSeason, into=c("yearSeason", NA), sep='-', remove=F)
@@ -185,17 +189,17 @@ salary_cap_data<- salary_cap_data %>% tidyr::separate(col=yearSeason, into=c("ye
 
 ## merging salary_cap_data to comprehensive_stats
 ```{r}
-comprehensive_stats<- merge(x=comprehensive_stats, y=salary_cap_data, by.x= c("yearSeason.x"), by.y=c("yearSeason"))
+player_stats<- merge(x=player_stats, y=salary_cap_data, by="yearSeason")
 ```
 
 ## mutating a new column as the ratio between salary and salary_cap, called normalised_salary
 ```{r}
-comprehensive_stats<- comprehensive_stats %>% dplyr::mutate(normalised_salary = totSalary / as.numeric(salary_cap)) # WORKS. do not change anything else.
+player_stats<- player_stats %>% dplyr::mutate(normalised_salary = totSalary / as.numeric(salary_cap)) # WORKS. do not change anything else.
 ```
 
 
 ## saving comprehensive stats in an RData file
 ```{r}
 # saving as RDS
-saveRDS(object=comprehensive_stats, file="comprehensive_stats.rds")
+saveRDS(object=player_stats, file="player_stats.rds")
 ```
