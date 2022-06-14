@@ -1,0 +1,60 @@
+Advanced Stats Spec
+
+Rk -- Rank
+Pos -- Position
+Age -- Player's age on February 1 of the season
+Tm -- Team
+G -- Games
+MP -- Minutes Played
+
+
+PER -- Player Efficiency Rating <link:- https://www.espn.com/nba/columns/story?columnist=hollinger_john&id=2850240>
+A measure of per-minute production standardized such that the league average is 15. IS a PER MINUTE STAT, not a PER 36 MIN STAT.
+TS% -- True Shooting Percentage
+A measure of shooting efficiency that takes into account 2-point field goals, 3-point field goals, and free throws.
+FTr -- Free Throw Attempt Rate-- Keep since transformation takes into account time that they were on the pitch
+Number of FT Attempts Per FG Attempt
+ORB% -- Offensive Rebound Percentage-- Keep since transformation takes into account time that they were on the pitch
+An estimate of the percentage of available offensive rebounds a player grabbed while they were on the floor.
+DRB% -- Defensive Rebound Percentage-- Keep since transformation takes into account time that they were on the pitch
+An estimate of the percentage of available defensive rebounds a player grabbed while they were on the floor.
+TRB% -- Total Rebound Percentage-- Keep since transformation takes into account time that they were on the pitch
+An estimate of the percentage of available rebounds a player grabbed while they were on the floor.
+AST% -- Assist Percentage-- Keep since transformation takes into account time that they were on the pitch
+An estimate of the percentage of teammate field goals a player assisted while they were on the floor.
+STL% -- Steal Percentage-- Keep since transformation takes into account time that they were on the pitch
+An estimate of the percentage of opponent possessions that end with a steal by the player while they were on the floor.
+BLK% -- Block Percentage -- Keep since transformation takes into account time that they were on the pitch
+An estimate of the percentage of opponent two-point field goal attempts blocked by the player while they were on the floor.
+USG% -- Usage Percentage -- Metric to gauge player effectiveness to team structure. Keep.
+An estimate of the percentage of team plays used by a player while they were on the floor.
+TOV% -- Turnover Percentage -- can keep since we have turnovers per game and per 36 min. Delete the other two
+An estimate of turnovers committed per 100 plays.
+WS -- Win Shares-- Keep, since encompasses OWS and DWS <Link:- https://www.basketball-reference.com/about/ws.html>
+An estimate of the number of wins contributed by a player.
+BPM -- Box Plus/Minus -- Keep, since encompasses OBPM and DBPM
+A box score estimate of the points per 100 possessions a player contributed above a league-average player, translated to an average team.
+VORP -- Value over Replacement Player -- Keep as metric is a transformation of features of player value by points.
+A box score estimate of the points per 100 TEAM possessions that a player contributed above a replacement-level (-2.0) player, translated to an average team and prorated to an 82-game season. Multiply by 2.70 to convert to wins over replacement.
+
+
+Features to be redacted from Advanced Feature Set
+---
+3PAr -- 3-Point Attempt Rate -- delete since TS% encompasses information
+Percentage of FG Attempts from 3-Point Range
+
+OWS -- Offensive Win Shares-- do not Keep
+An estimate of the number of wins contributed by a player due to offense.
+
+DWS -- Defensive Win Shares-- do not Keep
+An estimate of the number of wins contributed by a player due to defense.
+
+WS/48 -- Win Shares Per 48 Minutes -- Do not keep since we have WS.
+An estimate of the number of wins contributed by a player per 48 minutes (league average is approximately .100)
+
+OBPM -- Offensive Box Plus/Minus -- do not keep
+A box score estimate of the offensive points per 100 possessions a player contributed above a league-average player, translated to an average team.
+
+DBPM -- Defensive Box Plus/Minus -- do not keep
+A box score estimate of the defensive points per 100 possessions a player contributed above a league-average player, translated to an average team.
+---

@@ -1,0 +1,41 @@
+Per 36 min stat spec
+
+WILL DELETE ALL PER 36 MIN STATS SINCE ADVANCED STATS ENCOMPASSES PER MINUTE INFO BY EXTENSION, PER 36 INFO AS WELL.
+
+
+
+Also view explanations by holding mouse over column headers
+Rk -- Rank
+Pos -- Position
+Age -- Player's age on February 1 of the season
+Tm -- Team
+G -- Games
+GS -- Games Started
+<Transformation> GNS -- Games Not Started
+MP -- Minutes Played
+FG% -- Field Goal Percentage -- keep
+3P% -- 3-Point Field Goal Percentage -- keep
+2P% -- 2-Point Field Goal Percentage -- keep
+FT% -- Free Throw Percentage -- keep
+TRB -- Total Rebounds Per 36 Minutes -- keep -- delete since advanced stats has variable with info regarding it
+PF -- Personal Fouls Per 36 Minutes -- keep
+
+
+Features to be redacted from Per Minute Feature Set
+---
+FG -- Field Goals Per 36 Minutes -- delete
+FGA -- Field Goal Attempts Per 36 Minutes -- delete
+3P -- 3-Point Field Goals Per 36 Minutes -- delete
+3PA -- 3-Point Field Goal Attempts Per 36 Minutes -- delete
+2P -- 2-Point Field Goals Per 36 Minutes -- delete
+2PA -- 2-Point Field Goal Attempts Per 36 Minutes -- delete
+FT -- Free Throws Per 36 Minutes -- delete
+FTA -- Free Throw Attempts Per 36 Minutes -- delete
+ORB -- Offensive Rebounds Per 36 Minutes -- Delete
+DRB -- Defensive Rebounds Per 36 Minutes -- Delete
+AST -- Assists Per 36 Minutes -- delete
+STL -- Steals Per 36 Minutes -- delete
+BLK -- Blocks Per 36 Minutes -- delete
+TOV -- Turnovers Per 36 Minutes -- delete
+PTS -- Points Per 36 Minutes -- delete
+---
