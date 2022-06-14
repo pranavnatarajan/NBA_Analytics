@@ -1,5 +1,10 @@
 ENSEMBLE METHODS FOR NBA SALARY ESTIMATION
-University of Washington Statistics and Probability Association Directed Reading Program-Spring 2022.
-Pranav Natarajan
+University of Washington Statistics and Probability Association 
+Directed Reading Program-Spring 2022.
+Project by: Pranav Natarajan
 
-Please look at PDF
+
+Please look at code PDFs for the Markdown PDFs detailing data querying, 
+preprocessing, hyperparameter tuning, feature selection, and model evaluation.
+
+Please look at UW SPA DRP 2022.pptx for the slides of my presentation on the 9th of June 2022.
